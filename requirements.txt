@@ -1,2 +1,12 @@
 streamlit
+chromadb
+pysqlite3-binary
+beautifulsoup4
+langchain
 openai
+anthropic
+google-generativeai
+typing-extensions
+PyPDF2
+pandas
+PyMuPDF

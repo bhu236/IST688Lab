@@ -1,53 +1,109 @@
 import streamlit as st
-from openai import OpenAI
+import sys
+import os
+import importlib.util
 
-# Show title and description.
-st.title("📄 Document question answering")
-st.write(
-    "Upload a document below and ask a question about it – GPT will answer! "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-)
+# -------------------------------------------------------------------
+# ✅ 1. Setup paths
+# -------------------------------------------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # root of this file
+LAB_DIR = os.path.join(BASE_DIR, "labs_app")
+HW_DIR = os.path.join(BASE_DIR, "HWs")  # optional if HWs exist
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+# Add LAB_DIR and HW_DIR to sys.path for dynamic imports
+sys.path.extend([LAB_DIR, HW_DIR])
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+# -------------------------------------------------------------------
+# ✅ 2. Custom Lab Titles Mapping
+# -------------------------------------------------------------------
+custom_lab_titles = {
+    "lab1": "Lab 1 - FileBot Q&A Assistant 📄",
+    "lab2": "Lab 2 — PDF Summarizer 🤖",
+    "lab3": "Lab 3 — Interactive Kid-Friendly Streaming Chatbot",
+    "lab4": "Lab 4 — PDF📄 Q&A with ChromaDB + OpenAI",
+    "lab5": "Lab 5 — What to Wear Bot 👕",
+    "lab6": "Lab 6 - AI Fact-Checker ✅ + Citation Builder 🔗",
+}
 
-    # Let the user upload a file via `st.file_uploader`.
-    uploaded_file = st.file_uploader(
-        "Upload a document (.txt or .md)", type=("txt", "md")
-    )
+# -------------------------------------------------------------------
+# ✅ 3. Scan labs_app folder for lab files
+# -------------------------------------------------------------------
+def get_lab_modules():
+    labs = []
+    if os.path.exists(LAB_DIR):
+        for file in sorted(os.listdir(LAB_DIR)):
+            if file.startswith("lab") and file.endswith(".py"):
+                lab_name = os.path.splitext(file)[0]
+                display_name = custom_lab_titles.get(
+                    lab_name, lab_name.replace("lab", "Lab ").title()
+                )
+                labs.append((display_name, lab_name))
+    return labs
 
-    # Ask the user for a question via `st.text_area`.
-    question = st.text_area(
-        "Now ask a question about the document!",
-        placeholder="Can you give me a short summary?",
-        disabled=not uploaded_file,
-    )
+lab_modules = get_lab_modules()
 
-    if uploaded_file and question:
+# -------------------------------------------------------------------
+# ✅ 4. Scan HWs folder for HW files dynamically
+# -------------------------------------------------------------------
+def get_hw_modules():
+    hws = []
+    if os.path.exists(HW_DIR):
+        for file in sorted(os.listdir(HW_DIR)):
+            if file.startswith("HW") and file.endswith(".py"):
+                hw_name = os.path.splitext(file)[0]
+                display_name = hw_name.replace("HW", "HW ").title()
+                hws.append((display_name, hw_name))
+    return hws
 
-        # Process the uploaded file and question.
-        document = uploaded_file.read().decode()
-        messages = [
-            {
-                "role": "user",
-                "content": f"Here's a document: {document} \n\n---\n\n {question}",
-            }
-        ]
+hw_modules = get_hw_modules()
 
-        # Generate an answer using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            stream=True,
-        )
+# -------------------------------------------------------------------
+# ✅ 5. Sidebar Navigation
+# -------------------------------------------------------------------
+st.set_page_config(page_title="Labs and HWs App", page_icon="📘")
 
-        # Stream the response to the app using `st.write_stream`.
-        st.write_stream(stream)
+page_groups = {
+    "🧪 Labs": [name for name, _ in lab_modules],
+    "📚 Homeworks": [name for name, _ in hw_modules],
+}
+
+with st.sidebar:
+    st.markdown("## 📘 Labs & HWs Navigator")
+    section = st.radio("Select Section", list(page_groups.keys()))
+    page = st.radio("Select Page", page_groups[section])
+
+# -------------------------------------------------------------------
+# ✅ 6. Map display name to module name safely
+# -------------------------------------------------------------------
+page_module_map = {name: mod for name, mod in (lab_modules + hw_modules)}
+module_name = page_module_map.get(page)
+if not module_name:
+    st.error(f"Selected page '{page}' does not map to a module.")
+    st.stop()
+
+# -------------------------------------------------------------------
+# ✅ 7. Load and Run Module Dynamically
+# -------------------------------------------------------------------
+def load_module_from_path(module_name, folder_path):
+    module_file = os.path.join(folder_path, f"{module_name}.py")
+    if not os.path.exists(module_file):
+        raise FileNotFoundError(f"{module_file} not found")
+    spec = importlib.util.spec_from_file_location(module_name, module_file)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+try:
+    # Determine folder dynamically
+    folder_path = LAB_DIR if module_name.startswith("lab") else HW_DIR
+    module = load_module_from_path(module_name, folder_path)
+
+    if hasattr(module, "app"):
+        module.app()
+    elif hasattr(module, "main"):
+        module.main()
+    else:
+        st.warning(f"⚠️ `{module_name}` has no `app()` or `main()` function.")
+
+except Exception as e:
+    st.error(f"🚨 Error loading `{module_name}`: {e}")
