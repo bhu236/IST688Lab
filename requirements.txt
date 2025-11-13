@@ -10,3 +10,4 @@ typing-extensions
 PyPDF2
 pandas
 PyMuPDF
+tiktoken

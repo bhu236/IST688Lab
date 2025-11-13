@@ -23,6 +23,9 @@ custom_lab_titles = {
     "lab4": "Lab 4 — PDF📄 Q&A with ChromaDB + OpenAI",
     "lab5": "Lab 5 — What to Wear Bot 👕",
     "lab6": "Lab 6 - AI Fact-Checker ✅ + Citation Builder 🔗",
+    "lab7": "Lab 7 — Finetuning Cat Model using Llama Model🐈",
+    "lab8": "Lab 8 — SEC 10-Q Financial Analysis Platform",
+    "lab9": "Lab 9 - Multi-Agent Travel Planning System 🧠🗺️",
 }
 
 # -------------------------------------------------------------------
